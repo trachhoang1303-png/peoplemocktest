@@ -1,375 +1,48 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ExamShield Simulation - Thi Thử Tiếng Anh</title>
-    <style>
-        :root {
-            --primary-bg: #0b1a29;
-            --secondary-bg: #142638;
-            --accent-blue: #007acc;
-            --text-main: #ffffff;
-            --text-muted: #8fa0b5;
-            --btn-green: #2aa146;
-            --btn-green-hover: #238636;
-            --border-color: #26384d;
+document.getElementById('btn-prev').disabled = (index === 0);
+    document.getElementById('btn-next').disabled = (index === examQuestions.length - 1);
+}
+
+// 7. LƯU LỰA CHỌN CỦA HỌC VIÊN
+function makeSelection(optIdx) {
+    selectedAnswers[currentIdx] = optIdx;
+    loadQuestion(currentIdx);
+}
+
+// 8. ĐIỀU HƯỚNG: CÂU TIẾP THEO
+function nextQuestion() {
+    if (currentIdx < examQuestions.length - 1) {
+        loadQuestion(currentIdx + 1);
+    }
+}
+
+// 9. ĐIỀU HƯỚNG: CÂU TRƯỚC ĐÓ
+function prevQuestion() {
+    if (currentIdx > 0) {
+        loadQuestion(currentIdx - 1);
+    }
+}
+
+// 10. HÀM TÍNH ĐIỂM VÀ NỘP BÀI THI
+function submitExam() {
+    // Hỏi xác nhận trước khi nộp giống hệ thống thật
+    if (timeRemaining > 0 && !confirm("Bạn có chắc chắn muốn nộp bài thi ngay bây giờ không?")) {
+        return;
+    }
+
+    clearInterval(timerInterval);
+    let score = 0;
+    
+    examQuestions.forEach((q, i) => {
+        if (selectedAnswers[i] === q.correct) {
+            score++;
         }
+    });
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            user-select: none;
-        }
+    // Hiển thị màn hình kết quả (Popup Overlay)
+    document.getElementById('score-text').innerText = `${score} / ${examQuestions.length} ĐÚNG`;
+    document.getElementById('result-screen').style.display = 'flex';
+}
 
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: var(--primary-bg);
-            color: var(--text-main);
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        /* Top Navigation Bar */
-        .top-navbar {
-            background-color: var(--secondary-bg);
-            height: 50px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 20px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .brand-section {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: bold;
-            font-size: 16px;
-            color: #00aaff;
-        }
-
-        .brand-icon {
-            width: 20px;
-            height: 20px;
-            background-color: #00aaff;
-            border-radius: 50%;
-            display: inline-block;
-        }
-
-        .exam-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-main);
-        }
-
-        .system-controls {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            font-size: 13px;
-            color: var(--text-muted);
-        }
-
-        .timer-box {
-            background-color: #1e334a;
-            color: #ffcc00;
-            padding: 5px 12px;
-            border-radius: 4px;
-            font-family: monospace;
-            font-size: 15px;
-            font-weight: bold;
-            border: 1px solid #3d5675;
-        }
-
-        /* Main Workspace split layout */
-        .main-container {
-            display: flex;
-            flex: 1;
-            overflow: hidden;
-        }
-
-        /* Left side: Questions content */
-        .content-panel {
-            flex: 1;
-            padding: 40px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 30px;
-        }
-
-        .question-header {
-            font-size: 15px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 10px;
-        }
-
-        .question-body {
-font-size: 19px;
-            line-height: 1.6;
-            color: var(--text-main);
-        }
-
-        .options-list {
-            list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .option-item {
-            background-color: var(--secondary-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            padding: 16px 20px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            transition: all 0.2s ease;
-            font-size: 16px;
-        }
-
-        .option-item:hover {
-            border-color: var(--accent-blue);
-            background-color: #1a3047;
-        }
-
-        .option-item.selected {
-            border-color: #00aaff;
-            background-color: #103557;
-            box-shadow: 0 0 10px rgba(0, 170, 255, 0.2);
-        }
-
-        .option-radio {
-            width: 18px;
-            height: 18px;
-            border: 2px solid var(--text-muted);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-        }
-
-        .option-item.selected .option-radio {
-            border-color: #00aaff;
-            background-color: #00aaff;
-        }
-
-        .option-item.selected .option-radio::after {
-            content: "";
-            width: 6px;
-            height: 6px;
-            background-color: var(--primary-bg);
-            border-radius: 50%;
-        }
-
-        .option-letter {
-            font-weight: bold;
-            color: #00aaff;
-        }
-
-        /* Right side: Navigation & Panel Grid */
-        .sidebar-panel {
-            width: 280px;
-            background-color: var(--secondary-bg);
-            border-left: 2px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .sidebar-header {
-            padding: 20px;
-            border-bottom: 1px solid var(--border-color);
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-muted);
-            text-align: center;
-        }
-
-        .grid-container {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            align-content: start;
-        }
-
-        .grid-item {
-            background-color: var(--primary-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-muted);
-            aspect-ratio: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 4px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-
-        .grid-item:hover {
-border-color: var(--text-muted);
-            color: var(--text-main);
-        }
-
-        .grid-item.active {
-            border-color: #00aaff;
-            color: #00aaff;
-            background-color: #0c253d;
-        }
-
-        .grid-item.answered {
-            background-color: #1c3d27;
-            border-color: var(--btn-green);
-            color: #52c41a;
-        }
-
-        .sidebar-footer {
-            padding: 20px;
-            border-top: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-
-        /* Bottom Control Bar */
-        .bottom-bar {
-            background-color: var(--secondary-bg);
-            height: 65px;
-            border-top: 2px solid var(--border-color);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 40px;
-        }
-
-        .nav-buttons {
-            display: flex;
-            gap: 15px;
-        }
-
-        .btn {
-            padding: 10px 24px;
-            font-size: 14px;
-            font-weight: 600;
-            border-radius: 4px;
-            cursor: pointer;
-            border: none;
-            transition: background-color 0.2s;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn-secondary {
-            background-color: #273b52;
-            color: var(--text-main);
-            border: 1px solid var(--border-color);
-        }
-
-        .btn-secondary:hover {
-            background-color: #344d6b;
-        }
-
-        .btn-secondary:disabled {
-            background-color: #172433;
-            color: #52637a;
-            cursor: not-allowed;
-            border-color: transparent;
-        }
-
-        .btn-primary {
-            background-color: var(--accent-blue);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #008ae6;
-        }
-
-        .btn-submit {
-            background-color: var(--btn-green);
-            color: white;
-        }
-
-        .btn-submit:hover {
-            background-color: var(--btn-green-hover);
-        }
-
-        /* Overlay for results simulation */
-        .result-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(11, 26, 41, 0.95);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .result-box {
-            background-color: var(--secondary-bg);
-            border: 2px solid var(--border-color);
-            border-radius: 8px;
-            padding: 40px;
-            text-align: center;
-            max-width: 450px;
-            width: 90%;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-        }
-
-        .result-title {
-color: #52c41a;
-            font-size: 24px;
-            margin-bottom: 15px;
-        }
-
-        .result-score {
-            font-size: 36px;
-            font-weight: bold;
-            margin: 20px 0;
-            color: #ffcc00;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- Top Navbar Modeled after ExamShield -->
-    <div class="top-navbar">
-        <div class="brand-section">
-            <span class="brand-icon"></span>
-            <span>ExamShield Simulation</span>
-        </div>
-        <div class="exam-title" id="exam-display-name">LanguageCert / PeopleCert Mock Exam</div>
-        <div class="system-controls">
-            <span>Thời gian còn lại:</span>
-            <div class="timer-box" id="timer">60:00</div>
-        </div>
-    </div>
-
-    <!-- Main Content Workspace -->
-    <div class="main-container">
-        <!-- Question view panel -->
-        <div class="content-panel">
-            <div class="question-header" id="question-number-title">Question 1 of 3</div>
+// 11. THI LẠI TỪ ĐẦU (RESET HỆ THỐNG)
+function restartExam() {
+    selectedAnswers = new Array(examQuestions.length).fill(null);
